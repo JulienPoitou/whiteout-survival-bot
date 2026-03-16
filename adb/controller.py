@@ -117,66 +117,40 @@ class ADBController:
 
     def screenshot(self, save_path: Optional[str] = None) -> Optional[Image.Image]:
         """
-        Take screenshot via ADB - optimized file method
-        
-        Uses direct file pull which is more reliable than exec-out
-        on some emulators.
-        
+        Take screenshot via ADB using exec-out (FAST - direct to RAM)
+
+        Uses adb exec-out screencap -p which streams PNG directly
+        without writing to device storage.
+
         Args:
             save_path: Optional path to save the screenshot
-            
+
         Returns:
             PIL Image object or None if failed
         """
-        import uuid
-        
-        # Unique filename to avoid conflicts
-        temp_name = f"_scr_{uuid.uuid4().hex[:6]}.png"
-        device_path = f"/sdcard/{temp_name}"
-        local_path = str(Config.BASE_DIR / temp_name)
-        
         try:
-            # Step 1: Capture to device (fast on modern emulators)
-            success, out, err = self._run_command(
-                f"shell screencap -p {device_path}",
-                timeout=30
+            # exec-out streams PNG directly (no disk I/O)
+            result = subprocess.run(
+                f'"{ADB_PATH}" -s {self.device} exec-out screencap -p',
+                shell=True,
+                capture_output=True,
+                timeout=60  # Increased timeout
             )
-            
-            if not success:
-                self.logger.error(f"Capture failed: {err.decode() if err else 'unknown'}")
+
+            if result.returncode == 0 and result.stdout:
+                img = Image.open(io.BytesIO(result.stdout))
+
+                if save_path:
+                    img.save(save_path, format='PNG')
+                    self.logger.debug(f"Screenshot saved to {save_path}")
+
+                return img
+            else:
+                self.logger.error(f"Screenshot failed: {result.stderr.decode()[:200]}")
                 return None
-            
-            # Step 2: Pull to local (direct, no intermediate)
-            success, out, err = self._run_command(
-                f"pull {device_path} {local_path}",
-                timeout=30
-            )
-            
-            if not success:
-                self.logger.error(f"Pull failed: {err.decode() if err else 'unknown'}")
-                # Cleanup device
-                self._run_command(f"shell rm {device_path}", timeout=5)
-                return None
-            
-            # Step 3: Cleanup device immediately
-            self._run_command(f"shell rm {device_path}", timeout=5)
-            
-            # Step 4: Load image
-            img = Image.open(local_path)
-            
-            if save_path:
-                img.save(save_path, format='PNG')
-            
-            # Step 5: Cleanup local file
-            try:
-                os.unlink(local_path)
-            except:
-                pass
-            
-            return img
-            
+
         except subprocess.TimeoutExpired:
-            self.logger.error("Screenshot timeout (30s)")
+            self.logger.error("Screenshot timeout (60s)")
             return None
         except Exception as e:
             self.logger.error(f"Screenshot error: {e}")
@@ -376,5 +350,6 @@ class ADBController:
 
     def is_app_running(self, package: str = "com.funplus.whiteoutsurvival") -> bool:
         """Check if game app is running"""
-        success, output = self._run_command("shell ps")
-        return package in output if success else False
+        success, output, err = self._run_command("shell ps")
+        output_str = output.decode() if isinstance(output, bytes) else output
+        return package in output_str if success else False

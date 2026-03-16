@@ -42,10 +42,11 @@ class FastTemplateMatcher:
         self.templates_dir = Path(templates_dir) if templates_dir else Config.TEMPLATES_DIR
         self.threshold = threshold
         self.logger = logging.getLogger(__name__)
-        
-        # Cache: {template_name: cv2_image}
+
+        # Cache: {template_name: cv2_image} - thread-safe with lock
         self._cache: Dict[str, np.ndarray] = {}
-        
+        self._cache_lock = threading.Lock()
+
         # Also search in primebot legacy templates
         self.legacy_dirs = [
             Path("C:/Users/julie/primebot/images/whiteout"),
@@ -56,36 +57,40 @@ class FastTemplateMatcher:
 
     def _load_template(self, name: str) -> Optional[np.ndarray]:
         """Load template from cache or disk (including legacy dirs)"""
-        if name in self._cache:
-            return self._cache[name]
-        
-        # Search locations
+        # Thread-safe cache check
+        with self._cache_lock:
+            if name in self._cache:
+                return self._cache[name]
+
+        # Search locations (outside lock - disk I/O)
         search_paths = [
             self.templates_dir / f"{name}.png",
             self.templates_dir / f"{name}.jpg",
         ]
-        
+
         # Add legacy paths
         for legacy_dir in self.legacy_dirs:
             if legacy_dir.exists():
                 # Try direct
                 search_paths.append(legacy_dir / f"{name}.png")
                 search_paths.append(legacy_dir / f"{name}.jpg")
-                
+
                 # Try folder-based (e.g., furnace/on.png)
                 if '_' in name:
                     parts = name.split('_')
                     search_paths.append(legacy_dir / parts[0] / f"{'_'.join(parts[1:])}.png")
-        
-        # Search
+
+        # Search and load
         for path in search_paths:
             if path.exists():
                 template = cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
                 if template is not None:
-                    self._cache[name] = template
+                    # Thread-safe cache write
+                    with self._cache_lock:
+                        self._cache[name] = template
                     self.logger.debug(f"Loaded template: {name} from {path}")
                     return template
-        
+
         self.logger.debug(f"Template not found: {name}")
         return None
 

@@ -157,36 +157,30 @@ class TemplateHunterV3:
             logger.info(f"  👆 Clicking {result['name']} @ ({result['x']}, {result['y']})")
 
             # Scaling : capture 400x652 → screen 720x1280
-            real_x = int(result['x'] * 1.8)
-            real_y = int(result['y'] * 1.96)
-            
+            real_x = int(result['x'] * Config.SCALE_X)
+            real_y = int(result['y'] * Config.SCALE_Y)
+
             logger.info(f"     Scaled to: ({real_x}, {real_y})")
 
-            # Utiliser la commande ADB DIRECTE (plus fiable)
-            import subprocess
-            adb_cmd = r"C:\Users\julie\AppData\Local\Android\Sdk\platform-tools\adb.exe"
-            cmd = f'"{adb_cmd}" -s emulator-5554 shell input tap {real_x} {real_y}'
-            
-            logger.debug(f"     Running: {cmd}")
-            
-            result_proc = subprocess.run(cmd, shell=True, capture_output=True, timeout=5)
-            
-            if result_proc.returncode == 0:
+            # Utiliser adb.tap() avec scale=False (déjà scalé ici)
+            success = self.adb.tap(real_x, real_y, scale=False)
+
+            if success:
                 logger.info(f"     ✓ Click sent successfully!")
             else:
-                logger.error(f"     ✗ Click failed: {result_proc.stderr.decode()}")
-            
+                logger.error(f"     ✗ Click failed")
+
             time.sleep(1.5)  # Attendre que l'UI réagisse
 
-            return result_proc.returncode == 0
+            return success
         except Exception as e:
             logger.error(f"Click failed: {e}")
             return False
-    
+
     def _press_back(self):
         """Appuie sur retour (back arrow)"""
         logger.info("  🔙 Pressing BACK...")
-        
+
         # Essayer back arrow template d'abord
         screenshot = self.adb.screenshot()
         if screenshot:
