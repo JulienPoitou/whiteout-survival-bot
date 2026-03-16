@@ -33,28 +33,25 @@ class ADBController:
         self.connected = False
 
     def _run_command(self, command: str, timeout: int = 30, use_shell: bool = True) -> Tuple[bool, bytes, bytes]:
-        """Execute ADB command using explicit ADB path (version 41)"""
+        """Execute ADB command using explicit ADB path (version 41)
+        
+        Args:
+            command: ADB command (without 'adb' prefix)
+            timeout: Timeout in seconds
+            use_shell: If True, use shell=True (recommended for Windows)
+        """
         try:
             # Use explicit ADB path to avoid version conflicts
+            # Always use shell=True on Windows for compatibility
             full_command = f'"{ADB_PATH}" -s {self.device} {command}'
             
-            if use_shell:
-                result = subprocess.run(
-                    full_command,
-                    shell=True,
-                    capture_output=True,
-                    timeout=timeout
-                )
-            else:
-                # For binary data (exec-out), avoid shell=True
-                import shlex
-                args = shlex.split(full_command)
-                result = subprocess.run(
-                    args,
-                    capture_output=True,
-                    timeout=timeout
-                )
-            
+            result = subprocess.run(
+                full_command,
+                shell=True,  # Always True for Windows compatibility
+                capture_output=True,
+                timeout=timeout
+            )
+
             if result.returncode == 0:
                 return True, result.stdout, result.stderr
             return False, result.stdout, result.stderr
@@ -68,18 +65,31 @@ class ADBController:
         return self._run_command(command, timeout, use_shell)
 
     def connect(self) -> bool:
-        """Connect to LDPlayer emulator"""
+        """Connect to LDPlayer emulator
+        
+        Note: connect command should NOT use -s device prefix
+        """
         self.logger.info(f"Connecting to {self.device}...")
-        success, output, err = self._run_command(f"connect {self.device}")
-        output_str = output.decode() if isinstance(output, bytes) else output
-
-        if success or "connected" in output_str.lower() or "already" in output_str.lower():
-            self.connected = True
-            self.logger.info("✓ Connected to emulator")
-            return True
-
-        self.logger.error(f"✗ Connection failed: {output_str}")
-        return False
+        try:
+            # connect command doesn't use -s device prefix
+            result = subprocess.run(
+                f'"{ADB_PATH}" connect {self.device}',
+                shell=True,
+                capture_output=True,
+                timeout=30
+            )
+            output_str = result.stdout.decode()
+            
+            if "connected" in output_str.lower() or "already" in output_str.lower():
+                self.connected = True
+                self.logger.info("✓ Connected to emulator")
+                return True
+            
+            self.logger.error(f"✗ Connection failed: {output_str}")
+            return False
+        except Exception as e:
+            self.logger.error(f"✗ Connection error: {e}")
+            return False
 
     def disconnect(self):
         """Disconnect from emulator"""
@@ -104,24 +114,6 @@ class ADBController:
             return False
         except Exception:
             return False
-
-    def _run_adb_command(self, command: str, timeout: int = 60) -> tuple:
-        """Run ADB command and return (success, output)"""
-        import subprocess
-        try:
-            proc = subprocess.Popen(
-                command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
-            stdout, stderr = proc.communicate(timeout=timeout)
-            return (proc.returncode == 0, stdout, stderr)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            return (False, b'', b'Timeout')
-        except Exception as e:
-            return (False, b'', str(e).encode())
 
     def screenshot(self, save_path: Optional[str] = None) -> Optional[Image.Image]:
         """
