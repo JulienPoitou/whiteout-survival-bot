@@ -189,9 +189,9 @@ class TemplateHunterV3:
                 self._click_template(back_result)
                 time.sleep(1)
                 return
-        
-        # Fallback: tap top-left corner
-        self.adb.tap(70, 70)
+
+        # Fallback: tap top-left corner (already in screen coords)
+        self.adb.tap(70, 70, scale=False)
         time.sleep(1)
     
     def _log_report(self, force: bool = False):

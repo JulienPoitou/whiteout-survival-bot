@@ -68,8 +68,11 @@ class Config:
     SAVE_SCREENSHOTS = os.getenv("SAVE_SCREENSHOTS", "false").lower() == "true"
 
     # Dead Zones (areas to avoid or adjust for better clicking)
-    DEAD_ZONE_TOP_LEFT = {"x": 0, "y": 0, "width": 120, "height": 80}
-    DEAD_ZONE_TOP_RIGHT = {"x": 600, "y": 0, "width": 120, "height": 80}
+    # Coordinates are in CAPTURE resolution (400x652), NOT screen resolution
+    # Top-left: ~20% of screen width/height
+    # Top-right: starts at ~83% of screen width
+    DEAD_ZONE_TOP_LEFT = {"x": 0, "y": 0, "width": 80, "height": 50}
+    DEAD_ZONE_TOP_RIGHT = {"x": 330, "y": 0, "width": 70, "height": 50}
     
     # Back arrow click adjustment (offset to hit the clickable area)
     BACK_ARROW_OFFSET_X = int(os.getenv("BACK_ARROW_OFFSET_X", "15"))

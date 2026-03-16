@@ -256,8 +256,8 @@ class ADBController:
         """
         Special method to tap the back arrow (top-left corner)
         
-        The back arrow is often in a dead zone and hard to hit.
-        This method applies automatic offset and retry logic.
+        Uses coordinates in SCREEN resolution (720x1280) since it's
+        a fixed position, not from template matching.
         
         Args:
             retries: Number of retry attempts
@@ -265,30 +265,26 @@ class ADBController:
         Returns:
             True if back arrow was clicked successfully
         """
-        # Standard back arrow position (top-left)
-        base_x = 50
-        base_y = 50
-        
+        # Coordinates in SCREEN resolution (already scaled)
+        # Top-left corner of 720x1280 screen
+        screen_x = 100  # Already in screen coords
+        screen_y = 100  # Already in screen coords
+
         retries = retries or Config.BACK_ARROW_RETRIES
-        
+
         self.logger.info(f"🔙 Attempting back arrow click (retries={retries})...")
-        
+
         for attempt in range(1, retries + 1):
-            # Apply offset to hit the actual clickable area
-            adj_x = base_x + Config.BACK_ARROW_OFFSET_X
-            adj_y = base_y + Config.BACK_ARROW_OFFSET_Y
-            
-            self.logger.debug(f"  Attempt #{attempt}: tapping at ({adj_x}, {adj_y})")
-            
-            success = self.tap(adj_x, adj_y)
-            
+            self.logger.debug(f"  Attempt #{attempt}: tapping at ({screen_x}, {screen_y})")
+
+            # scale=False because coords are already in screen resolution
+            success = self.tap(screen_x, screen_y, scale=False)
+
             if success:
                 time.sleep(0.5)  # Wait for screen transition
-                
-                # Check if screen changed (optional, could compare screenshots)
                 self.logger.debug(f"✓ Back arrow tap succeeded")
                 return True
-        
+
         self.logger.warning(f"✗ Back arrow tap failed after {retries} attempts")
         return False
 
