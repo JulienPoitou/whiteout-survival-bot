@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyc
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Screenshots
+*.png
+_scr_*.png
+
+# Knowledge base
+knowledge/
+
+# Environment
+.env
+.env.local
+*.bat
+*.cmd
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+test_*.py
+*_test.py

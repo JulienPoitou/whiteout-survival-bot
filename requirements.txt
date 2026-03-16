@@ -1,0 +1,20 @@
+# Core
+Pillow>=10.0.0
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Computer Vision
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# OCR
+pytesseract>=0.3.10
+
+# ADB
+adb-shell>=0.4.4
+
+# Async
+asyncio>=3.4.3
+
+# Utils
+loguru>=0.7.0
